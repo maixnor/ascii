@@ -4,6 +4,17 @@
 This is a native application running in your browser.
 Powered by Rust and WebAssembly.
 
+### Nightly
+
+This project requires nightly features.
+
+Install nightly toolchain using:
+`cargo toolchain install nightly`
+and enable nightly features within the project with
+`rustup override set nightly`.
+
+Enjoy the nightly features!
+
 ### Inspiration
 
 After watching these 2 videos:
@@ -13,11 +24,11 @@ After watching these 2 videos:
 
 I decided to combine them and created this app.
 
-### Run locally (native native) 
+### Run locally (native native)
 
 `cargo run`
 
-### Run locally (browser native) 
+### Run locally (browser native)
 
 `cargo install --locked trunk && trunk serve`
 

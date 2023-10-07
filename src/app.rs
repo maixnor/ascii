@@ -6,6 +6,7 @@ use crate::app::convert::convert_to_ascii;
 #[derive(Default)]
 pub struct App {
     dropped_files: Vec<egui::DroppedFile>,
+    current_text: Option<String>,
 }
 
 impl App {
@@ -27,8 +28,6 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { dropped_files } = self;
-
         #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             // The top panel is often a good place for a menu bar:
@@ -44,8 +43,11 @@ impl eframe::App for App {
         side_panel(ctx);
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            match dropped_files.first() {
-                Some(file) => display_image(ui, file),
+            if let Some(file) = self.dropped_files.first() {
+                convert_image(&mut self, file);
+            }
+            match self.current_text {
+                Some(text) => render_ascii(ui, text),
                 None => {
                     ui.label("drag-and-drop image files to convert to ascii art!");
                 }
@@ -116,19 +118,17 @@ fn side_panel(ctx: &egui::Context) {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn display_image(ui: &mut egui::Ui, file: &egui::DroppedFile) {
-    display_image_bytes(
-        ui,
-        file.bytes
-            .as_ref()
-            .expect("could not load bytes from dropped file"),
-    );
+fn convert_image(app: &mut App, file: &egui::DroppedFile) {
+    let bytes = file
+        .bytes
+        .as_ref()
+        .expect("could not load bytes from dropped file");
+    convert_image_bytes(app, bytes);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn display_image(ui: &mut egui::Ui, file: &egui::DroppedFile) {
-    display_image_bytes(
-        ui,
+fn convert_image(app: &mut App, file: &egui::DroppedFile) {
+    let bytes = std::io::Cursor::new(
         std::fs::read(
             file.path
                 .as_ref()
@@ -139,19 +139,29 @@ fn display_image(ui: &mut egui::Ui, file: &egui::DroppedFile) {
         .expect("could not read from path")
         .as_slice(),
     );
+    convert_image_bytes(app, bytes);
 }
 
-fn display_image_bytes(ui: &mut egui::Ui, bytes: &[u8]) {
-    use std::io::Cursor;
-
-    let reader = image::io::Reader::new(Cursor::new(bytes))
+fn convert_image_bytes(app: &mut App, cursor: std::io::Cursor<&[u8]>) {
+    let reader = image::io::Reader::new(cursor)
         .with_guessed_format()
         .unwrap();
 
-    match reader.decode() {
-        Ok(img) => ui.monospace(convert_to_ascii(img)),
-        Err(_) => ui.label("Not a valid Image!"),
-    };
+    match reader.decode().ok() {
+        Some(img) => app.current_text = Some(convert_to_ascii(img)),
+        None => app.current_text = None,
+    }
+}
+
+fn render_ascii(ui: &mut egui::Ui, text: String) {
+    if ui
+        .add(egui::Label::new(egui::RichText::new(text).monospace()).sense(egui::Sense::click()))
+        .clicked()
+    {
+        ui.output().copied_text = text;
+    }
+
+    ui.label("Click the ASCII Art to Copy to Clipboard");
 }
 
 #[test]

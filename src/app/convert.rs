@@ -1,14 +1,13 @@
-pub fn convert_to_ascii(img: image::DynamicImage) -> String {
+pub fn convert_to_ascii(raw_img: image::DynamicImage) -> String {
     use image::GenericImageView;
+    let img = raw_img.resize(150, 150, image::imageops::FilterType::CatmullRom);
     let (width, height) = img.dimensions();
-    let scale = min(width / 150, height / 100);
-    let (width, height) = ((width / scale) - 1, (height / scale / 2) - 1);
 
     let mut ascii = "".to_string();
 
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = img.get_pixel(x * scale, y * scale * 2);
+    for y in 0..height / 2 {
+        for x in 0..width - 1 {
+            let pixel = img.get_pixel(x, y * 2);
             let intent = intent(pixel);
             let character = get_ascii_char(intent);
             ascii.push(character);
@@ -17,17 +16,6 @@ pub fn convert_to_ascii(img: image::DynamicImage) -> String {
     }
 
     ascii
-}
-
-fn min(a: u32, b: u32) -> u32 {
-    if a == 0 || b == 0 {
-        1
-    } else {
-        match a < b {
-            true => a,
-            false => b,
-        }
-    }
 }
 
 fn intent(rgb: image::Rgba<u8>) -> u8 {
